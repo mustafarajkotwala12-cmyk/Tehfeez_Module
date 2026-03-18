@@ -1,0 +1,875 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Akademia — Daily Marks</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700;900&family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --ink: #0d0d0d;
+    --paper: #f5f0e8;
+    --cream: #ede8db;
+    --gold: #c8a84b;
+    --rust: #c0522a;
+    --forest: #2d5a3d;
+    --sky: #2a4a6b;
+    --muted: #7a7060;
+    --border: #d4cfc0;
+    --white: #ffffff;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: 'DM Sans', sans-serif; background: var(--paper); color: var(--ink); min-height: 100vh; }
+
+  /* HEADER */
+  header {
+    background: var(--ink); color: var(--paper);
+    padding: 0 2.5rem;
+    display: flex; align-items: center; justify-content: space-between;
+    height: 64px; position: sticky; top: 0; z-index: 100;
+    border-bottom: 2px solid var(--gold);
+  }
+  .logo { font-family: 'Playfair Display', serif; font-size: 1.6rem; font-weight: 900; letter-spacing: -0.02em; }
+  .logo span { color: var(--gold); }
+  .header-meta { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); text-align: right; line-height: 1.6; }
+
+  /* LAYOUT */
+  .app { display: grid; grid-template-columns: 280px 1fr; min-height: calc(100vh - 64px); }
+
+  /* SIDEBAR */
+  .sidebar {
+    background: var(--cream); border-right: 1px solid var(--border);
+    display: flex; flex-direction: column;
+    height: calc(100vh - 64px); position: sticky; top: 64px; overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .sidebar-title { font-family: 'DM Mono', monospace; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.12em; color: var(--muted); }
+  .student-count { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--gold); background: var(--ink); padding: 2px 7px; border-radius: 10px; }
+  .search-wrap { padding: 0.75rem 1rem; border-bottom: 1px solid var(--border); }
+  .search-wrap input {
+    width: 100%; background: var(--white); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.82rem; color: var(--ink); outline: none; transition: border 0.2s;
+  }
+  .search-wrap input:focus { border-color: var(--gold); }
+  .student-list { flex: 1; overflow-y: auto; padding: 0.5rem 0; }
+  .student-list::-webkit-scrollbar { width: 4px; }
+  .student-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .student-item {
+    display: flex; align-items: center; gap: 0.75rem;
+    padding: 0.65rem 1.25rem; cursor: pointer; transition: background 0.15s;
+    border-left: 3px solid transparent;
+  }
+  .student-item:hover { background: rgba(200,168,75,0.1); }
+  .student-item.active { background: rgba(200,168,75,0.15); border-left-color: var(--gold); }
+  .student-avatar {
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-size: 0.85rem; font-weight: 700;
+    flex-shrink: 0; color: var(--white);
+  }
+  .student-info { flex: 1; min-width: 0; }
+  .student-name { font-size: 0.85rem; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .student-sub { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); }
+  .grade-pill { font-family: 'DM Mono', monospace; font-size: 0.65rem; font-weight: 500; padding: 2px 7px; border-radius: 10px; flex-shrink: 0; }
+  .sidebar-footer { padding: 0.75rem 1rem; border-top: 1px solid var(--border); }
+  .btn-add-student {
+    width: 100%; background: var(--ink); color: var(--gold);
+    border: none; border-radius: 7px; padding: 9px;
+    font-family: 'DM Mono', monospace; font-size: 0.72rem; letter-spacing: 0.05em;
+    cursor: pointer; transition: background 0.2s; text-transform: uppercase;
+  }
+  .btn-add-student:hover { background: #2a2a2a; }
+
+  /* MAIN */
+  .main { overflow-y: auto; padding: 2.5rem; background: var(--paper); }
+
+  /* EMPTY STATE */
+  .empty-state {
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    height: 60vh; text-align: center; opacity: 0.6;
+  }
+  .empty-icon { font-size: 3.5rem; margin-bottom: 1rem; }
+  .empty-state h2 { font-family: 'Playfair Display', serif; font-size: 1.4rem; margin-bottom: 0.5rem; }
+  .empty-state p { font-size: 0.85rem; color: var(--muted); }
+
+  /* REPORT CARD */
+  .report-card { max-width: 900px; animation: fadeUp 0.3s ease; }
+  @keyframes fadeUp { from { opacity:0; transform:translateY(14px); } to { opacity:1; transform:translateY(0); } }
+
+  /* TOP BAR */
+  .report-topbar {
+    display: flex; align-items: flex-start; justify-content: space-between;
+    margin-bottom: 2rem; gap: 1rem; flex-wrap: wrap;
+  }
+  .student-headline { display: flex; align-items: center; gap: 1.25rem; }
+  .avatar-large {
+    width: 60px; height: 60px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Playfair Display', serif; font-size: 1.4rem; font-weight: 700;
+    color: var(--white); flex-shrink: 0;
+  }
+  .student-headline-info h1 { font-family: 'Playfair Display', serif; font-size: 1.7rem; font-weight: 700; line-height: 1.1; }
+  .student-headline-info .meta { font-family: 'DM Mono', monospace; font-size: 0.7rem; color: var(--muted); margin-top: 4px; letter-spacing: 0.05em; }
+
+  .report-actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+  .btn {
+    border: 1px solid var(--border); background: transparent; color: var(--ink);
+    padding: 7px 14px; border-radius: 6px; font-family: 'DM Mono', monospace;
+    font-size: 0.7rem; cursor: pointer; transition: all 0.2s;
+    text-transform: uppercase; letter-spacing: 0.05em;
+  }
+  .btn:hover { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+  .btn-gold { background: var(--gold); color: var(--ink); border-color: var(--gold); font-weight: 600; }
+  .btn-gold:hover { background: #b8942e; border-color: #b8942e; color: var(--ink); }
+  .btn-danger { border-color: var(--rust); color: var(--rust); }
+  .btn-danger:hover { background: var(--rust); color: var(--white); border-color: var(--rust); }
+
+  /* STAT ROW */
+  .stat-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 2rem; }
+  .stat-card {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 10px; padding: 1.1rem 1.25rem; position: relative; overflow: hidden;
+  }
+  .stat-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+  .stat-card.gold::before { background: var(--gold); }
+  .stat-card.forest::before { background: var(--forest); }
+  .stat-card.sky::before { background: var(--sky); }
+  .stat-card.rust::before { background: var(--rust); }
+  .stat-label { font-family: 'DM Mono', monospace; font-size: 0.63rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted); margin-bottom: 0.4rem; }
+  .stat-value { font-family: 'Playfair Display', serif; font-size: 1.9rem; font-weight: 700; line-height: 1; }
+  .stat-sub { font-family: 'DM Mono', monospace; font-size: 0.65rem; color: var(--muted); margin-top: 4px; }
+
+  /* SECTION */
+  .section { background: var(--white); border: 1px solid var(--border); border-radius: 12px; margin-bottom: 1.5rem; overflow: hidden; }
+  .section-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--cream);
+  }
+  .section-title { font-family: 'DM Mono', monospace; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink); font-weight: 500; }
+  .section-body { padding: 1.25rem 1.5rem; }
+
+  /* ── DAILY ENTRY FORM ── */
+  .entry-form {
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    gap: 0.75rem;
+    align-items: end;
+    padding: 1.25rem 1.5rem;
+    background: var(--cream);
+    border-bottom: 1px solid var(--border);
+  }
+  .entry-form .fg { display: flex; flex-direction: column; gap: 0.3rem; }
+  .entry-form label { font-family: 'DM Mono', monospace; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); }
+  .entry-form input, .entry-form select {
+    background: var(--white); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 10px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.83rem;
+    color: var(--ink); outline: none; transition: border 0.2s; width: 100%;
+  }
+  .entry-form input:focus, .entry-form select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.1); }
+  .entry-subjects-row {
+    display: flex; gap: 0.6rem; align-items: end; flex-wrap: wrap; flex: 1;
+  }
+  .subject-score-group { display: flex; flex-direction: column; gap: 0.3rem; }
+  .subject-score-group label { font-family: 'DM Mono', monospace; font-size: 0.6rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); white-space: nowrap; }
+  .subject-score-group input {
+    width: 72px; background: var(--white); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 8px;
+    font-family: 'DM Mono', monospace; font-size: 0.85rem;
+    color: var(--ink); outline: none; transition: border 0.2s; text-align: center;
+  }
+  .subject-score-group input:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.1); }
+
+  /* ── ENTRIES TABLE ── */
+  .entries-table { width: 100%; border-collapse: collapse; font-size: 0.82rem; }
+  .entries-table thead tr { background: var(--paper); }
+  .entries-table th {
+    font-family: 'DM Mono', monospace; font-size: 0.6rem; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted); font-weight: 500;
+    padding: 0.6rem 0.9rem; text-align: left; border-bottom: 1px solid var(--border);
+  }
+  .entries-table td { padding: 0.65rem 0.9rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .entries-table tr:last-child td { border-bottom: none; }
+  .entries-table tr:hover td { background: rgba(200,168,75,0.05); }
+  .entry-date { font-family: 'DM Mono', monospace; font-size: 0.72rem; color: var(--muted); white-space: nowrap; }
+  .entry-score-chip {
+    display: inline-flex; align-items: center; justify-content: center;
+    font-family: 'DM Mono', monospace; font-size: 0.72rem; font-weight: 500;
+    padding: 2px 9px; border-radius: 10px; min-width: 40px;
+  }
+  .score-A { background: rgba(45,90,61,0.12); color: var(--forest); }
+  .score-B { background: rgba(42,74,107,0.12); color: var(--sky); }
+  .score-C { background: rgba(200,168,75,0.15); color: #8a6e1a; }
+  .score-D { background: rgba(192,82,42,0.12); color: var(--rust); }
+  .score-F { background: rgba(180,0,0,0.1); color: #b00; }
+  .entry-note { font-size: 0.78rem; color: var(--muted); font-style: italic; }
+  .delete-entry {
+    background: none; border: none; cursor: pointer; color: var(--border);
+    font-size: 0.8rem; padding: 2px 6px; border-radius: 4px; transition: all 0.2s;
+  }
+  .delete-entry:hover { color: var(--rust); background: rgba(192,82,42,0.08); }
+
+  /* SUBJECT TABS */
+  .subject-tabs { display: flex; gap: 0.4rem; flex-wrap: wrap; padding: 0.75rem 1.5rem; border-bottom: 1px solid var(--border); background: var(--paper); }
+  .subject-tab {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.06em;
+    padding: 4px 12px; border-radius: 20px; cursor: pointer;
+    border: 1px solid var(--border); background: transparent; color: var(--muted);
+    transition: all 0.15s;
+  }
+  .subject-tab:hover { border-color: var(--ink); color: var(--ink); }
+  .subject-tab.active { background: var(--ink); color: var(--gold); border-color: var(--ink); }
+
+  /* TREND SPARKLINE */
+  .sparkline-row { display: flex; align-items: center; gap: 0.5rem; }
+  .sparkline { flex: 1; height: 28px; }
+
+  /* EMPTY TABLE */
+  .empty-table { text-align: center; padding: 2.5rem; color: var(--muted); font-size: 0.83rem; }
+  .empty-table .ei { font-size: 1.8rem; margin-bottom: 0.5rem; }
+
+  /* MODAL */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(13,13,13,0.7);
+    backdrop-filter: blur(4px); z-index: 200;
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
+    opacity: 0; pointer-events: none; transition: opacity 0.25s;
+  }
+  .modal-overlay.open { opacity: 1; pointer-events: all; }
+  .modal {
+    background: var(--white); border-radius: 14px;
+    width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+    transform: translateY(24px); transition: transform 0.3s ease;
+    border: 1px solid var(--border);
+  }
+  .modal-overlay.open .modal { transform: translateY(0); }
+  .modal-header {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--border);
+    background: var(--cream); border-radius: 14px 14px 0 0;
+    position: sticky; top: 0; z-index: 1;
+  }
+  .modal-title { font-family: 'Playfair Display', serif; font-size: 1.2rem; font-weight: 700; }
+  .modal-close { background: none; border: none; cursor: pointer; font-size: 1.1rem; color: var(--muted); transition: color 0.2s; }
+  .modal-close:hover { color: var(--ink); }
+  .modal-body { padding: 1.5rem; }
+
+  /* FORM */
+  .form-section { margin-bottom: 1.5rem; }
+  .form-section-label {
+    font-family: 'DM Mono', monospace; font-size: 0.65rem;
+    text-transform: uppercase; letter-spacing: 0.1em; color: var(--muted);
+    margin-bottom: 0.75rem; padding-bottom: 0.4rem; border-bottom: 1px solid var(--border);
+  }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
+  .form-group { display: flex; flex-direction: column; gap: 0.35rem; margin-bottom: 0.75rem; }
+  .form-group label { font-size: 0.78rem; font-weight: 500; color: var(--ink); }
+  .form-group input, .form-group select {
+    background: var(--paper); border: 1px solid var(--border);
+    border-radius: 7px; padding: 8px 12px;
+    font-family: 'DM Sans', sans-serif; font-size: 0.83rem; color: var(--ink);
+    outline: none; transition: border 0.2s; width: 100%;
+  }
+  .form-group input:focus, .form-group select:focus { border-color: var(--gold); box-shadow: 0 0 0 3px rgba(200,168,75,0.1); }
+  .subject-inputs { display: flex; flex-direction: column; gap: 0.5rem; }
+  .subject-input-row { display: flex; gap: 0.5rem; align-items: center; }
+  .subject-input-row input { flex: 1; }
+  .btn-small {
+    background: none; border: 1px solid var(--border); border-radius: 5px; padding: 6px 10px;
+    cursor: pointer; font-size: 0.8rem; transition: all 0.2s; color: var(--muted); flex-shrink: 0;
+  }
+  .btn-small:hover { background: var(--rust); border-color: var(--rust); color: white; }
+  .btn-small.add { color: var(--forest); border-color: var(--forest); }
+  .btn-small.add:hover { background: var(--forest); color: white; }
+  .form-footer { display: flex; gap: 0.75rem; justify-content: flex-end; padding-top: 1rem; border-top: 1px solid var(--border); }
+
+  .hidden { display: none !important; }
+
+  @media print {
+    header, .sidebar, .entry-form, .report-actions, .delete-entry { display: none; }
+    .main { padding: 0; }
+    .app { grid-template-columns: 1fr; }
+  }
+
+  /* SUBJECT ENTRY BLOCK in modal */
+  .subj-entry-block {
+    background: var(--paper);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.85rem 1rem;
+    margin-bottom: 0.6rem;
+  }
+  .subj-entry-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--ink);
+    font-weight: 500;
+    margin-bottom: 0.6rem;
+  }
+  .subj-entry-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-end;
+  }
+
+  /* SUBJECT NOTE TAG in table */
+  .subj-note-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 0.62rem;
+    color: var(--muted);
+    margin-top: 4px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 140px;
+  }
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Aka<span>demia</span></div>
+  <div class="header-meta">
+    <div>DAILY MARKS TRACKER</div>
+    <div id="headerDate"></div>
+  </div>
+</header>
+
+<div class="app">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="sidebar-title">Students</div>
+      <div class="student-count" id="studentCount">0</div>
+    </div>
+    <div class="search-wrap">
+      <input type="text" id="searchInput" placeholder="Search student...">
+    </div>
+    <div class="student-list" id="studentList"></div>
+    <div class="sidebar-footer">
+      <button class="btn-add-student" onclick="openAddStudent()">+ Add Student</button>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main" id="mainPanel">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">📒</div>
+      <h2>No student selected</h2>
+      <p>Pick a student from the sidebar to start entering daily marks.</p>
+    </div>
+    <div class="report-card hidden" id="reportCard"></div>
+  </main>
+</div>
+
+<!-- ADD STUDENT MODAL -->
+<div class="modal-overlay" id="studentModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="studentModalTitle">Add New Student</div>
+      <button class="modal-close" onclick="closeStudentModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-section-label">Student Info</div>
+        <div class="form-row">
+          <div class="form-group"><label>Full Name *</label><input type="text" id="f_name" placeholder="e.g. Aarav Mehta"></div>
+          <div class="form-group"><label>Student ID</label><input type="text" id="f_id" placeholder="e.g. STU-001"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Grade / Class</label><input type="text" id="f_class" placeholder="e.g. Grade 10 - A"></div>
+          <div class="form-group"><label>Academic Year</label><input type="text" id="f_year" placeholder="e.g. 2025-26"></div>
+        </div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-label">Subjects to Track</div>
+        <div class="subject-inputs" id="subjectInputs"></div>
+        <button class="btn-small add" style="margin-top:0.5rem" onclick="addSubjectRow()">+ Add Subject</button>
+      </div>
+      <div class="form-footer">
+        <button class="btn" onclick="closeStudentModal()">Cancel</button>
+        <button class="btn btn-gold" onclick="saveStudent()">Save Student</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ADD ENTRY MODAL -->
+<div class="modal-overlay" id="entryModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Add Daily Entry</div>
+      <button class="modal-close" onclick="closeEntryModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-section">
+        <div class="form-section-label">Entry Details</div>
+        <div class="form-row">
+          <div class="form-group"><label>Date *</label><input type="date" id="e_date"></div>
+          <div class="form-group"><label>Max Marks</label><input type="number" id="e_max" placeholder="10" min="1"></div>
+        </div>
+        <div class="form-group"><label>Entry Type / Label</label><input type="text" id="e_type" placeholder="e.g. Class Test, Assignment, Quiz..."></div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-label">Marks per Subject</div>
+        <div id="entrySubjectFields"></div>
+      </div>
+      <div class="form-section">
+        <div class="form-section-label">Note (optional)</div>
+        <div class="form-group"><input type="text" id="e_note" placeholder="e.g. Performed well in reasoning section"></div>
+      </div>
+      <div class="form-footer">
+        <button class="btn" onclick="closeEntryModal()">Cancel</button>
+        <button class="btn btn-gold" onclick="saveEntry()">Save Entry</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STORE ──
+let students = JSON.parse(localStorage.getItem('akademia_v2_students') || '[]');
+let activeId = null;
+let editingStudentId = null;
+let activeSubjectTab = 'all';
+
+const AVATAR_COLORS = ['#2d5a3d','#2a4a6b','#7b3f6e','#c0522a','#4a6b2a','#5a3d6e','#2a6b5a','#6b4a2a'];
+
+function save() { localStorage.setItem('akademia_v2_students', JSON.stringify(students)); }
+function initials(n) { return n.split(' ').map(w => w[0]).slice(0,2).join('').toUpperCase(); }
+function avatarColor(n) { let h=0; for(let c of n) h=(h<<5)-h+c.charCodeAt(0); return AVATAR_COLORS[Math.abs(h)%AVATAR_COLORS.length]; }
+
+function scoreGrade(s, max) {
+  const pct = (s / max) * 100;
+  if (pct >= 90) return 'A';
+  if (pct >= 75) return 'B';
+  if (pct >= 60) return 'C';
+  if (pct >= 40) return 'D';
+  return 'F';
+}
+function gradePillColors() { return {A:'#2d5a3d',B:'#2a4a6b',C:'#8a6e1a',D:'#c0522a',F:'#b00'}; }
+
+// ── SIDEBAR ──
+function renderSidebar(filter='') {
+  const list = document.getElementById('studentList');
+  document.getElementById('studentCount').textContent = students.length;
+  const filtered = students.filter(s => s.name.toLowerCase().includes(filter.toLowerCase()));
+  list.innerHTML = '';
+  if (!filtered.length) {
+    list.innerHTML = `<div style="padding:1.5rem;text-align:center;font-size:0.78rem;color:var(--muted)">No students found</div>`;
+    return;
+  }
+  filtered.forEach(s => {
+    const entries = s.entries || [];
+    const allScores = entries.flatMap(e =>
+      Object.values(e.scores).map(sc => (sc / (e.max || 10)) * 100)
+    );
+    const avg = allScores.length ? Math.round(allScores.reduce((a,b)=>a+b,0)/allScores.length) : null;
+    const grade = avg !== null ? scoreGrade(avg, 100) : '—';
+    const pc = gradePillColors();
+    const div = document.createElement('div');
+    div.className = 'student-item' + (s.id === activeId ? ' active' : '');
+    div.innerHTML = `
+      <div class="student-avatar" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
+      <div class="student-info">
+        <div class="student-name">${s.name}</div>
+        <div class="student-sub">${entries.length} entr${entries.length===1?'y':'ies'} · ${s.class||'No class'}</div>
+      </div>
+      ${avg !== null ? `<div class="grade-pill" style="background:${pc[grade]};color:#fff">${grade}</div>` : ''}
+    `;
+    div.onclick = () => selectStudent(s.id);
+    list.appendChild(div);
+  });
+}
+
+// ── SELECT STUDENT ──
+function selectStudent(id) {
+  activeId = id;
+  activeSubjectTab = 'all';
+  document.getElementById('emptyState').classList.add('hidden');
+  document.getElementById('reportCard').classList.remove('hidden');
+  renderReport();
+  renderSidebar(document.getElementById('searchInput').value);
+}
+
+// ── RENDER REPORT ──
+function renderReport() {
+  const s = students.find(x => x.id === activeId);
+  if (!s) return;
+  const rc = document.getElementById('reportCard');
+  const entries = s.entries || [];
+  const subjects = s.subjects || [];
+
+  // Stats
+  const allScoresPct = entries.flatMap(e =>
+    Object.values(e.scores).map(sc => (sc / (e.max||10))*100)
+  );
+  const overallAvg = allScoresPct.length ? Math.round(allScoresPct.reduce((a,b)=>a+b,0)/allScoresPct.length) : null;
+  const overallGrade = overallAvg !== null ? scoreGrade(overallAvg, 100) : '—';
+
+  const gradeColor = {A:'var(--forest)',B:'var(--sky)',C:'var(--gold)',D:'var(--rust)',F:'#b00'};
+
+  // Best/worst subject
+  let bestSubj = '—', worstSubj = '—';
+  if (subjects.length && entries.length) {
+    const subjAvgs = subjects.map(sub => {
+      const scores = entries.filter(e => e.scores[sub] !== undefined).map(e => (e.scores[sub]/(e.max||10))*100);
+      return { name: sub, avg: scores.length ? scores.reduce((a,b)=>a+b,0)/scores.length : 0 };
+    }).filter(x => x.avg > 0).sort((a,b) => b.avg - a.avg);
+    if (subjAvgs.length) { bestSubj = subjAvgs[0].name; worstSubj = subjAvgs[subjAvgs.length-1].name; }
+  }
+
+  // Tabs
+  const tabsHTML = `
+    <div class="subject-tabs">
+      <button class="subject-tab ${activeSubjectTab==='all'?'active':''}" onclick="setTab('all')">All</button>
+      ${subjects.map(sub => `<button class="subject-tab ${activeSubjectTab===sub?'active':''}" onclick="setTab('${sub}')">${sub}</button>`).join('')}
+    </div>`;
+
+  // Filter entries by tab
+  const filtered = activeSubjectTab === 'all'
+    ? entries
+    : entries.filter(e => e.scores[activeSubjectTab] !== undefined);
+
+  // Table rows
+  const rows = filtered.length ? [...filtered].reverse().map(e => {
+    const max = e.max || 10;
+    const scoreCells = activeSubjectTab === 'all'
+      ? subjects.map(sub => {
+          if (e.scores[sub] === undefined) return `<td>—</td>`;
+          const g = scoreGrade(e.scores[sub], max);
+          const sn = (e.subjNotes && e.subjNotes[sub]) ? `<div class="subj-note-tag">${e.subjNotes[sub]}</div>` : '';
+          return `<td><span class="entry-score-chip score-${g}">${e.scores[sub]}/${max}</span>${sn}</td>`;
+        }).join('')
+      : (() => {
+          const sc = e.scores[activeSubjectTab];
+          const g = scoreGrade(sc, max);
+          const pct = Math.round((sc/max)*100);
+          const sn = (e.subjNotes && e.subjNotes[activeSubjectTab]) ? `<div class="subj-note-tag">${e.subjNotes[activeSubjectTab]}</div>` : '';
+          return `<td><span class="entry-score-chip score-${g}">${sc}/${max}</span>${sn}</td><td style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted)">${pct}%</td>`;
+        })();
+    return `
+      <tr>
+        <td class="entry-date">${formatDate(e.date)}</td>
+        <td style="font-size:0.78rem;color:var(--muted);font-style:italic">${e.type||'—'}</td>
+        ${scoreCells}
+        <td class="entry-note">${e.note||''}</td>
+        <td><button class="delete-entry" onclick="deleteEntry('${e.id}')">✕</button></td>
+      </tr>`;
+  }).join('') : `<tr><td colspan="20"><div class="empty-table"><div class="ei">📝</div>No entries yet. Add one above.</div></td></tr>`;
+
+  // Table headers
+  const subjectHeaders = activeSubjectTab === 'all'
+    ? subjects.map(s => `<th>${s}</th>`).join('')
+    : `<th>${activeSubjectTab}</th><th>%</th>`;
+
+  rc.innerHTML = `
+    <div class="report-topbar">
+      <div class="student-headline">
+        <div class="avatar-large" style="background:${avatarColor(s.name)}">${initials(s.name)}</div>
+        <div class="student-headline-info">
+          <h1>${s.name}</h1>
+          <div class="meta">${[s.studentId, s.class, s.year].filter(Boolean).join(' · ')||'No details added'}</div>
+        </div>
+      </div>
+      <div class="report-actions">
+        <button class="btn btn-gold" onclick="openEntryModal()">+ Add Entry</button>
+        <button class="btn" onclick="openAddStudent('${s.id}')">✎ Edit</button>
+        <button class="btn btn-danger" onclick="deleteStudent('${s.id}')">✕</button>
+      </div>
+    </div>
+
+    <div class="stat-row">
+      <div class="stat-card gold">
+        <div class="stat-label">Overall Grade</div>
+        <div class="stat-value" style="color:${gradeColor[overallGrade]||'var(--muted)'}">${overallGrade}</div>
+        <div class="stat-sub">${overallAvg !== null ? overallAvg+'% avg' : 'No entries yet'}</div>
+      </div>
+      <div class="stat-card forest">
+        <div class="stat-label">Total Entries</div>
+        <div class="stat-value">${entries.length}</div>
+        <div class="stat-sub">across ${subjects.length} subject${subjects.length!==1?'s':''}</div>
+      </div>
+      <div class="stat-card sky">
+        <div class="stat-label">Best Subject</div>
+        <div class="stat-value" style="font-size:1.1rem;padding-top:4px">${bestSubj}</div>
+        <div class="stat-sub">highest avg score</div>
+      </div>
+      <div class="stat-card rust">
+        <div class="stat-label">Needs Work</div>
+        <div class="stat-value" style="font-size:1.1rem;padding-top:4px">${worstSubj}</div>
+        <div class="stat-sub">lowest avg score</div>
+      </div>
+    </div>
+
+    <!-- ENTRIES TABLE -->
+    <div class="section">
+      <div class="section-head">
+        <div class="section-title">📒 Daily Marks Log</div>
+        <div class="section-title" style="color:var(--muted)">${filtered.length} record${filtered.length!==1?'s':''}</div>
+      </div>
+      ${tabsHTML}
+      <div style="overflow-x:auto">
+        <table class="entries-table">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Type</th>
+              ${subjectHeaders}
+              <th>Note</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+
+    ${renderSubjectSummary(s)}
+  `;
+}
+
+function renderSubjectSummary(s) {
+  const entries = s.entries || [];
+  const subjects = s.subjects || [];
+  if (!subjects.length || !entries.length) return '';
+
+  const rows = subjects.map(sub => {
+    const scores = entries.filter(e => e.scores[sub] !== undefined).map(e => ({
+      score: e.scores[sub], max: e.max||10, pct: Math.round((e.scores[sub]/(e.max||10))*100)
+    }));
+    if (!scores.length) return '';
+    const avg = Math.round(scores.reduce((a,b)=>a+b.pct,0)/scores.length);
+    const best = Math.max(...scores.map(x=>x.pct));
+    const worst = Math.min(...scores.map(x=>x.pct));
+    const grade = scoreGrade(avg, 100);
+    const barColor = {A:'var(--forest)',B:'var(--sky)',C:'var(--gold)',D:'var(--rust)',F:'#b00'}[grade];
+    return `
+      <tr>
+        <td style="font-weight:500;font-size:0.85rem">${sub}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:0.6rem">
+            <div style="flex:1;height:6px;background:var(--border);border-radius:3px;overflow:hidden;min-width:80px">
+              <div style="height:100%;width:${avg}%;background:${barColor};border-radius:3px"></div>
+            </div>
+            <span style="font-family:'DM Mono',monospace;font-size:0.72rem;color:var(--muted);min-width:32px">${avg}%</span>
+          </div>
+        </td>
+        <td><span class="entry-score-chip score-${grade}">${grade}</span></td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--forest)">${best}%</td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--rust)">${worst}%</td>
+        <td style="font-family:'DM Mono',monospace;font-size:0.7rem;color:var(--muted)">${scores.length} entries</td>
+      </tr>`;
+  }).filter(Boolean).join('');
+
+  if (!rows) return '';
+  return `
+    <div class="section">
+      <div class="section-head"><div class="section-title">📊 Subject Summary</div></div>
+      <div style="overflow-x:auto">
+        <table class="entries-table">
+          <thead><tr><th>Subject</th><th>Average</th><th>Grade</th><th>Best</th><th>Lowest</th><th>Count</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>`;
+}
+
+function setTab(tab) {
+  activeSubjectTab = tab;
+  renderReport();
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  try {
+    return new Date(d + 'T00:00:00').toLocaleDateString('en-IN', { day:'numeric', month:'short', year:'numeric' });
+  } catch { return d; }
+}
+
+// ── ADD ENTRY MODAL ──
+function openEntryModal() {
+  const s = students.find(x => x.id === activeId);
+  if (!s) return;
+  document.getElementById('e_date').value = new Date().toISOString().split('T')[0];
+  document.getElementById('e_max').value = '';
+  document.getElementById('e_type').value = '';
+  document.getElementById('e_note').value = '';
+  const fields = document.getElementById('entrySubjectFields');
+  fields.innerHTML = (s.subjects || []).map(sub => `
+    <div class="subj-entry-block">
+      <div class="subj-entry-label">${sub}</div>
+      <div class="subj-entry-row">
+        <div class="form-group" style="margin:0;flex:0 0 120px">
+          <label>Marks</label>
+          <input type="number" class="entry-subj-score" data-subject="${sub}" placeholder="e.g. 8" min="0">
+        </div>
+        <div class="form-group" style="margin:0;flex:1">
+          <label>Graded on</label>
+          <input type="text" class="entry-subj-note" data-subject="${sub}" placeholder="e.g. Surah Al-Fatiha, Lesson 3...">
+        </div>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('entryModal').classList.add('open');
+}
+function closeEntryModal() { document.getElementById('entryModal').classList.remove('open'); }
+
+function saveEntry() {
+  const s = students.find(x => x.id === activeId);
+  const date = document.getElementById('e_date').value;
+  if (!date) { document.getElementById('e_date').focus(); return; }
+  const max = parseInt(document.getElementById('e_max').value) || 10;
+  const scores = {};
+  const subjNotes = {};
+  document.querySelectorAll('.entry-subj-score').forEach(input => {
+    const v = input.value.trim();
+    if (v !== '') scores[input.dataset.subject] = parseFloat(v);
+  });
+  document.querySelectorAll('.entry-subj-note').forEach(input => {
+    const v = input.value.trim();
+    if (v !== '') subjNotes[input.dataset.subject] = v;
+  });
+  if (!Object.keys(scores).length) { alert('Please enter at least one subject score.'); return; }
+  const entry = {
+    id: Date.now().toString(),
+    date,
+    max,
+    type: document.getElementById('e_type').value.trim(),
+    note: document.getElementById('e_note').value.trim(),
+    scores,
+    subjNotes
+  };
+  s.entries = s.entries || [];
+  s.entries.push(entry);
+  save();
+  closeEntryModal();
+  renderReport();
+  renderSidebar(document.getElementById('searchInput').value);
+}
+
+function deleteEntry(entryId) {
+  if (!confirm('Delete this entry?')) return;
+  const s = students.find(x => x.id === activeId);
+  s.entries = s.entries.filter(e => e.id !== entryId);
+  save();
+  renderReport();
+  renderSidebar(document.getElementById('searchInput').value);
+}
+
+// ── ADD / EDIT STUDENT MODAL ──
+function openAddStudent(editId = null) {
+  editingStudentId = editId;
+  document.getElementById('studentModalTitle').textContent = editId ? 'Edit Student' : 'Add New Student';
+  ['f_name','f_id','f_class','f_year'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('subjectInputs').innerHTML = '';
+  if (editId) {
+    const s = students.find(x => x.id === editId);
+    document.getElementById('f_name').value = s.name || '';
+    document.getElementById('f_id').value = s.studentId || '';
+    document.getElementById('f_class').value = s.class || '';
+    document.getElementById('f_year').value = s.year || '';
+    (s.subjects || []).forEach(sub => addSubjectRow(sub));
+  } else {
+    addSubjectRow("Muraja'at");
+    addSubjectRow("Juz Ha'ali");
+    addSubjectRow("Jadeed");
+  }
+  document.getElementById('studentModal').classList.add('open');
+}
+function closeStudentModal() { document.getElementById('studentModal').classList.remove('open'); }
+
+function addSubjectRow(name = '') {
+  const c = document.getElementById('subjectInputs');
+  const d = document.createElement('div');
+  d.className = 'subject-input-row';
+  d.innerHTML = `
+    <input type="text" placeholder="Subject name" value="${name}" class="subj-name">
+    <button class="btn-small" onclick="this.parentElement.remove()">✕</button>
+  `;
+  c.appendChild(d);
+}
+
+function saveStudent() {
+  const name = document.getElementById('f_name').value.trim();
+  if (!name) { document.getElementById('f_name').focus(); return; }
+  const subjects = [...document.querySelectorAll('.subj-name')].map(i => i.value.trim()).filter(Boolean);
+  const data = {
+    id: editingStudentId || Date.now().toString(),
+    name,
+    studentId: document.getElementById('f_id').value.trim(),
+    class: document.getElementById('f_class').value.trim(),
+    year: document.getElementById('f_year').value.trim(),
+    subjects,
+    entries: editingStudentId ? (students.find(x=>x.id===editingStudentId)?.entries||[]) : []
+  };
+  if (editingStudentId) {
+    const idx = students.findIndex(x => x.id === editingStudentId);
+    students[idx] = data;
+  } else {
+    students.push(data);
+  }
+  save();
+  closeStudentModal();
+  renderSidebar();
+  selectStudent(data.id);
+}
+
+function deleteStudent(id) {
+  if (!confirm('Delete this student and all their data?')) return;
+  students = students.filter(s => s.id !== id);
+  save(); activeId = null;
+  document.getElementById('reportCard').classList.add('hidden');
+  document.getElementById('emptyState').classList.remove('hidden');
+  renderSidebar();
+}
+
+// SEARCH
+document.getElementById('searchInput').addEventListener('input', e => renderSidebar(e.target.value));
+
+// CLOSE MODALS ON OVERLAY CLICK
+['studentModal','entryModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', e => {
+    if (e.target === document.getElementById(id)) {
+      id === 'studentModal' ? closeStudentModal() : closeEntryModal();
+    }
+  });
+});
+
+// ── INIT ──
+function init() {
+  document.getElementById('headerDate').textContent = new Date().toLocaleDateString('en-IN', {weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  if (!students.length) loadDemo();
+  else renderSidebar();
+}
+
+function loadDemo() {
+  const s = {
+    id: 'demo1', name: 'Aarav Mehta', studentId: 'STU-001', class: 'Grade 10 - A', year: '2025-26',
+    subjects: ["Muraja'at", "Juz Ha'ali", "Jadeed"],
+    entries: [
+      { id:'e1', date:'2026-01-10', max:10, type:'Class Test',  note:'Good effort',        scores:{"Muraja'at":8, "Juz Ha'ali":7, "Jadeed":9},  subjNotes:{"Muraja'at":"Surah Al-Baqarah (1-5)", "Juz Ha'ali":"Juz 1 revision", "Jadeed":"Noon Sakinah rules"} },
+      { id:'e2', date:'2026-01-17', max:10, type:'Quiz',        note:'',                   scores:{"Muraja'at":6, "Juz Ha'ali":8},                  subjNotes:{"Muraja'at":"Surah Al-Imran (10-15)", "Juz Ha'ali":"Juz 2 pages 1-10"} },
+      { id:'e3', date:'2026-02-03', max:10, type:'Unit Test',   note:'Strong improvement', scores:{"Muraja'at":9, "Juz Ha'ali":8, "Jadeed":10},     subjNotes:{"Muraja'at":"Surah Al-Baqarah full", "Juz Ha'ali":"Juz 1 complete", "Jadeed":"Madd rules"} },
+      { id:'e4', date:'2026-02-20', max:10, type:'Assignment',  note:'',                   scores:{"Juz Ha'ali":7, "Jadeed":8},                     subjNotes:{"Juz Ha'ali":"Juz 3 pages 5-12", "Jadeed":"Idgham rules"} },
+    ]
+  };
+  students = [s];
+  save();
+  renderSidebar();
+  selectStudent('demo1');
+}
+
+init();
+</script>
+</body>
+</html>
